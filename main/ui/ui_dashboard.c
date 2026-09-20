@@ -144,16 +144,28 @@ static void configure_arc_appearance(lv_obj_t *arc, int width, lv_color_t color,
     lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
 }
 
-static void build_provider_column(lv_obj_t *parent, const provider_data_t *provider, int total_count) {
+static void build_provider_column(lv_obj_t *parent, const provider_data_t *provider, int index, int total_count) {
     provider_theme_t theme = ui_theme_get_provider_color(provider->id, provider->has_secondary);
+
+    // Responsive geometry
+    int col_w = (total_count >= 4) ? 232 : (total_count == 3 ? 310 : (total_count == 2 ? 460 : 600));
+    int ring_size = (total_count >= 4) ? 145 : (total_count == 3 ? 175 : 205);
+    int stroke_outer = (int)(ring_size * 0.12);
+    int gap = (int)(ring_size * 0.045);
+    int stroke_inner = (int)(stroke_outer * 0.85);
 
     // Column container
     lv_obj_t *col = lv_obj_create(parent);
-    lv_obj_set_size(col, LV_SIZE_CONTENT, 530);
-    lv_obj_set_flex_grow(col, 1);
-    lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_size(col, col_w, 530);
+    lv_obj_set_style_bg_color(col, COLOR_BG, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(col, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(col, 12, LV_PART_MAIN);
+    if (index < total_count - 1) {
+        lv_obj_set_style_border_side(col, LV_BORDER_SIDE_RIGHT, LV_PART_MAIN);
+        lv_obj_set_style_border_color(col, COLOR_DIVIDER, LV_PART_MAIN);
+        lv_obj_set_style_border_width(col, 1, LV_PART_MAIN);
+    }
+    lv_obj_set_style_pad_all(col, 8, LV_PART_MAIN);
     lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(col, 12, LV_PART_MAIN);
@@ -162,15 +174,13 @@ static void build_provider_column(lv_obj_t *parent, const provider_data_t *provi
     // 1. Provider Title
     lv_obj_t *name_lbl = lv_label_create(col);
     lv_label_set_text(name_lbl, provider->name);
-    lv_obj_set_style_text_font(name_lbl, &lv_font_montserrat_22, LV_PART_MAIN);
+    lv_obj_set_style_text_font(name_lbl, (total_count <= 2) ? &lv_font_montserrat_22 : &lv_font_montserrat_18, LV_PART_MAIN);
     lv_obj_set_style_text_color(name_lbl, COLOR_TEXT_MAIN, LV_PART_MAIN);
+    lv_obj_set_width(name_lbl, lv_pct(100));
+    lv_obj_set_style_text_align(name_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_label_set_long_mode(name_lbl, LV_LABEL_LONG_DOT);
 
     // 2. Ring Container (Concentric Rings)
-    int ring_size = (total_count <= 2) ? 210 : (total_count == 3 ? 180 : 155);
-    int stroke_outer = ring_size * 0.12;
-    int gap = ring_size * 0.045;
-    int stroke_inner = stroke_outer * 0.85;
-
     lv_obj_t *ring_box = lv_obj_create(col);
     lv_obj_set_size(ring_box, ring_size, ring_size);
     lv_obj_set_style_bg_opa(ring_box, LV_OPA_TRANSP, LV_PART_MAIN);
@@ -208,7 +218,7 @@ static void build_provider_column(lv_obj_t *parent, const provider_data_t *provi
         snprintf(pct_str, sizeof(pct_str), "--");
     }
     lv_label_set_text(pct_label, pct_str);
-    lv_obj_set_style_text_font(pct_label, (ring_size >= 190) ? &lv_font_montserrat_36 : (ring_size >= 165 ? &lv_font_montserrat_32 : &lv_font_montserrat_28), LV_PART_MAIN);
+    lv_obj_set_style_text_font(pct_label, (ring_size >= 190) ? &lv_font_montserrat_36 : (ring_size >= 165 ? &lv_font_montserrat_32 : &lv_font_montserrat_26), LV_PART_MAIN);
     lv_obj_set_style_text_color(pct_label, COLOR_TEXT_MAIN, LV_PART_MAIN);
     lv_obj_align(pct_label, LV_ALIGN_CENTER, 0, 0);
 
@@ -226,47 +236,68 @@ static void build_provider_column(lv_obj_t *parent, const provider_data_t *provi
     for (int r = 0; r < provider->row_count; r++) {
         const limit_row_t *row = &provider->rows[r];
 
-        // Single Capsule Card
+        // 2-Line Structured Capsule Card
         lv_obj_t *capsule = lv_obj_create(rows_box);
         lv_obj_set_width(capsule, lv_pct(100));
-        lv_obj_set_height(capsule, 38);
+        lv_obj_set_height(capsule, 56);
         lv_obj_set_style_bg_color(capsule, COLOR_CAPSULE_BG, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(capsule, LV_OPA_COVER, LV_PART_MAIN);
         lv_obj_set_style_border_width(capsule, 0, LV_PART_MAIN);
         lv_obj_set_style_radius(capsule, 10, LV_PART_MAIN);
         lv_obj_set_style_pad_hor(capsule, 12, LV_PART_MAIN);
-        lv_obj_set_style_pad_ver(capsule, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_ver(capsule, 8, LV_PART_MAIN);
         lv_obj_clear_flag(capsule, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(capsule, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(capsule, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
 
-        // Row flex layout: [Label] [Spacer] [Percent] [Reset]
-        lv_obj_t *r_lbl = lv_label_create(capsule);
+        // Top Row: [Label] ---------------- [Percent]
+        lv_obj_t *row_top = lv_obj_create(capsule);
+        lv_obj_set_width(row_top, lv_pct(100));
+        lv_obj_set_height(row_top, LV_SIZE_CONTENT);
+        lv_obj_set_style_bg_opa(row_top, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(row_top, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(row_top, 0, LV_PART_MAIN);
+        lv_obj_clear_flag(row_top, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(row_top, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row_top, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+        lv_obj_t *r_lbl = lv_label_create(row_top);
+        lv_obj_set_width(r_lbl, 140);
+        lv_label_set_long_mode(r_lbl, LV_LABEL_LONG_DOT);
         lv_label_set_text(r_lbl, row->label);
         lv_obj_set_style_text_font(r_lbl, &ui_font_chinese_16, LV_PART_MAIN);
         lv_obj_set_style_text_color(r_lbl, COLOR_TEXT_MUTED, LV_PART_MAIN);
-        lv_obj_align(r_lbl, LV_ALIGN_LEFT_MID, 0, 0);
 
-        // Right container for percent and reset
-        lv_obj_t *right_sub = lv_obj_create(capsule);
-        lv_obj_set_size(right_sub, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_opa(right_sub, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(right_sub, 0, LV_PART_MAIN);
-        lv_obj_set_style_pad_all(right_sub, 0, LV_PART_MAIN);
-        lv_obj_set_flex_flow(right_sub, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(right_sub, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_gap(right_sub, 8, LV_PART_MAIN);
-        lv_obj_align(right_sub, LV_ALIGN_RIGHT_MID, 0, 0);
-        lv_obj_clear_flag(right_sub, LV_OBJ_FLAG_SCROLLABLE);
-
-        lv_obj_t *p_lbl = lv_label_create(right_sub);
+        lv_obj_t *p_lbl = lv_label_create(row_top);
+        lv_obj_set_width(p_lbl, 60);
+        lv_obj_set_style_text_align(p_lbl, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
         lv_label_set_text(p_lbl, row->percent);
         lv_obj_set_style_text_font(p_lbl, &lv_font_montserrat_16, LV_PART_MAIN);
         lv_obj_set_style_text_color(p_lbl, COLOR_TEXT_MAIN, LV_PART_MAIN);
 
-        if (row->reset[0] != '\0') {
-            lv_obj_t *rst_lbl = lv_label_create(right_sub);
-            lv_label_set_text(rst_lbl, row->reset);
-            lv_obj_set_style_text_font(rst_lbl, &ui_font_chinese_16, LV_PART_MAIN);
-            lv_obj_set_style_text_color(rst_lbl, COLOR_TEXT_LIGHT, LV_PART_MAIN);
-        }
+        // Bottom Row: [Subtitle] ---------- [Reset Time]
+        lv_obj_t *row_bot = lv_obj_create(capsule);
+        lv_obj_set_width(row_bot, lv_pct(100));
+        lv_obj_set_height(row_bot, LV_SIZE_CONTENT);
+        lv_obj_set_style_bg_opa(row_bot, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(row_bot, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(row_bot, 0, LV_PART_MAIN);
+        lv_obj_clear_flag(row_bot, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(row_bot, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row_bot, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+        lv_obj_t *sub_lbl = lv_label_create(row_bot);
+        lv_label_set_text(sub_lbl, (row->reset[0] != '\0') ? "重置" : "计费");
+        lv_obj_set_style_text_font(sub_lbl, &ui_font_chinese_16, LV_PART_MAIN);
+        lv_obj_set_style_text_color(sub_lbl, COLOR_TEXT_LIGHT, LV_PART_MAIN);
+
+        lv_obj_t *rst_lbl = lv_label_create(row_bot);
+        lv_obj_set_width(rst_lbl, 140);
+        lv_obj_set_style_text_align(rst_lbl, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+        lv_label_set_long_mode(rst_lbl, LV_LABEL_LONG_DOT);
+        lv_label_set_text(rst_lbl, (row->reset[0] != '\0') ? row->reset : "按量使用");
+        lv_obj_set_style_text_font(rst_lbl, &ui_font_chinese_16, LV_PART_MAIN);
+        lv_obj_set_style_text_color(rst_lbl, COLOR_TEXT_LIGHT, LV_PART_MAIN);
     }
 }
 
@@ -289,10 +320,11 @@ void ui_dashboard_init(void) {
     lv_obj_set_style_bg_color(s_columns_cont, COLOR_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_columns_cont, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(s_columns_cont, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_hor(s_columns_cont, 16, LV_PART_MAIN);
-    lv_obj_set_style_pad_ver(s_columns_cont, 12, LV_PART_MAIN);
+    lv_obj_set_style_pad_hor(s_columns_cont, 12, LV_PART_MAIN);
+    lv_obj_set_style_pad_ver(s_columns_cont, 8, LV_PART_MAIN);
     lv_obj_set_flex_flow(s_columns_cont, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(s_columns_cont, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(s_columns_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(s_columns_cont, 12, LV_PART_MAIN);
     lv_obj_clear_flag(s_columns_cont, LV_OBJ_FLAG_SCROLLABLE);
 
     // Initially show empty state
@@ -368,21 +400,9 @@ void ui_dashboard_update_payload(const sync_payload_t *payload) {
 
     // Rebuild columns
     lv_obj_clean(s_columns_cont);
+    lv_obj_invalidate(s_columns_cont);
 
     for (int i = 0; i < payload->provider_count; i++) {
-        // Vertical divider line between columns
-        if (i > 0) {
-            lv_obj_t *div = lv_obj_create(s_columns_cont);
-            lv_obj_set_size(div, 1, 460);
-            lv_obj_set_style_bg_color(div, COLOR_DIVIDER, LV_PART_MAIN);
-            lv_obj_set_style_border_width(div, 0, LV_PART_MAIN);
-            lv_obj_set_style_radius(div, 0, LV_PART_MAIN);
-            lv_obj_set_style_pad_all(div, 0, LV_PART_MAIN);
-            lv_obj_set_style_margin_hor(div, 6, LV_PART_MAIN);
-            lv_obj_align(div, LV_ALIGN_CENTER, 0, 0);
-            lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
-        }
-
-        build_provider_column(s_columns_cont, &payload->providers[i], payload->provider_count);
+        build_provider_column(s_columns_cont, &payload->providers[i], i, payload->provider_count);
     }
 }

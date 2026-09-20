@@ -68,11 +68,14 @@ static void parse_limit_row(const cJSON *row_obj, limit_row_t *row) {
 bool parse_sync_payload(const char *json_str, sync_payload_t *out_payload) {
     if (!json_str || !out_payload) return false;
 
+    const char *start = strchr(json_str, '{');
+    if (!start) return false;
+
     memset(out_payload, 0, sizeof(sync_payload_t));
 
-    cJSON *root = cJSON_Parse(json_str);
+    cJSON *root = cJSON_Parse(start);
     if (!root) {
-        ESP_LOGW(TAG, "JSON parse error before: [%.32s]", json_str);
+        ESP_LOGW(TAG, "JSON parse error before: [%.32s]", start);
         return false;
     }
 

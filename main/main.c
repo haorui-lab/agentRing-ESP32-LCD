@@ -49,7 +49,7 @@ void app_main(void) {
     bsp_display_cfg_t cfg = {
         .lv_adapter_cfg = ESP_LV_ADAPTER_DEFAULT_CONFIG(),
         .rotation = ESP_LV_ADAPTER_ROTATE_0,
-        .tear_avoid_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_TRIPLE_PARTIAL,
+        .tear_avoid_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_DOUBLE_DIRECT,
         .touch_flags = {
             .swap_xy = 0,
             .mirror_x = 1,
@@ -78,9 +78,8 @@ void app_main(void) {
     };
     bt_transport_init(&bt_cfg);
 
-    // 5. Initial Demo Preview: Show beautiful live dashboard after 2 seconds
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    bt_transport_inject_demo_data();
+    // 5. Dual Transport (BLE + USB Serial) is active. Screen displays waiting state until first live frame.
+    ESP_LOGI(TAG, "已就绪，正在等待 Mac 端实时推流数据 (支持 BLE 无线 / USB-C 串口)...");
 
     // 6. Main Background Watchdog Loop
     while (1) {

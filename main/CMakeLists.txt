@@ -6,6 +6,7 @@ idf_component_register(
         "ui/ui_dashboard.c"
         "ui/ui_font_chinese_16.c"
         "ui/ui_font_chinese_22.c"
+        "bt/ble_server.c"
         "bt/bt_transport.c"
     INCLUDE_DIRS
         "."
@@ -17,4 +18,5 @@ idf_component_register(
         json
         freertos
         esp_timer
+        bt
 )
