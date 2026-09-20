@@ -12,7 +12,7 @@ idf_component_register(
         "bt"
     REQUIRES
         nvs_flash
-        cjson
+        json
         freertos
         esp_timer
 )
