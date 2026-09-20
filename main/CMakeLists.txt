@@ -4,6 +4,8 @@ idf_component_register(
         "model/sync_payload.c"
         "ui/ui_theme.c"
         "ui/ui_dashboard.c"
+        "ui/ui_font_chinese_16.c"
+        "ui/ui_font_chinese_22.c"
         "bt/bt_transport.c"
     INCLUDE_DIRS
         "."

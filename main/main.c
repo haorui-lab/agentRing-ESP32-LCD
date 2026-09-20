@@ -32,7 +32,10 @@ void app_main(void) {
     ESP_LOGI(TAG, "  Waveshare ESP32-P4-WIFI6-Touch-LCD-7B");
     ESP_LOGI(TAG, "================================================");
 
-    // 1. Initialize NVS
+    // 1. Initialize NVS and Timezone
+    setenv("TZ", "CST-8", 1);
+    tzset();
+
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());

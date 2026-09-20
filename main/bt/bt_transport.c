@@ -17,8 +17,13 @@ static bt_transport_config_t s_config;
 static int64_t s_last_active_time_ms = 0;
 static bool s_is_connected = false;
 
-static const char *DEMO_JSON = 
-"{\"timestamp\":1726487626,\"providers\":[{\"id\":\"codex\",\"name\":\"Codex\",\"primary\":{\"label\":\"7天\",\"remainingPercent\":16.0,\"resetsAt\":\"4d 14h\"},\"rows\":[{\"label\":\"7天\",\"percent\":\"16%\",\"reset\":\"4d 14h\"}]},{\"id\":\"antigravity\",\"name\":\"Antigravity\",\"primary\":{\"label\":\"Gemini 5小时\",\"remainingPercent\":51.0,\"resetsAt\":\"3h 33m\"},\"secondary\":{\"label\":\"Gemini 7天\",\"remainingPercent\":86.0,\"resetsAt\":\"6d 17h\"},\"rows\":[{\"label\":\"Gemini 5小时\",\"percent\":\"51%\",\"reset\":\"3h 33m\"},{\"label\":\"Gemini 7天\",\"percent\":\"86%\",\"reset\":\"6d 17h\"}]},{\"id\":\"antigravity_third\",\"name\":\"Antigravity Third\",\"primary\":{\"label\":\"Claude/GPT 5小时\",\"remainingPercent\":100.0,\"resetsAt\":\"4h 59m\"},\"secondary\":{\"label\":\"Claude/GPT 7天\",\"remainingPercent\":33.0,\"resetsAt\":\"5d 18h\"},\"rows\":[{\"label\":\"Claude/GPT 5小时\",\"percent\":\"100%\",\"reset\":\"4h 59m\"},{\"label\":\"Claude/GPT 7天\",\"percent\":\"33%\",\"reset\":\"5d 18h\"}]}]}\n";
+static const char *DEMO_JSON_FORMAT = 
+"{\"timestamp\":%lld,\"providers\":["
+"{\"id\":\"codex\",\"name\":\"Codex\",\"primary\":{\"label\":\"7天\",\"remainingPercent\":16.0,\"resetsAt\":\"4d 14h\"},\"rows\":[{\"label\":\"7天\",\"percent\":\"16%\",\"reset\":\"4d 14h\"}]},"
+"{\"id\":\"antigravity\",\"name\":\"Antigravity\",\"primary\":{\"label\":\"Gemini 5小时\",\"remainingPercent\":51.0,\"resetsAt\":\"3h 33m\"},\"secondary\":{\"label\":\"Gemini 7天\",\"remainingPercent\":86.0,\"resetsAt\":\"6d 17h\"},\"rows\":[{\"label\":\"Gemini 5小时\",\"percent\":\"51%\",\"reset\":\"3h 33m\"},{\"label\":\"Gemini 7天\",\"percent\":\"86%\",\"reset\":\"6d 17h\"}]},"
+"{\"id\":\"antigravity_third\",\"name\":\"Antigravity Third\",\"primary\":{\"label\":\"Claude/GPT 5小时\",\"remainingPercent\":100.0,\"resetsAt\":\"4h 59m\"},\"secondary\":{\"label\":\"Claude/GPT 7天\",\"remainingPercent\":33.0,\"resetsAt\":\"5d 18h\"},\"rows\":[{\"label\":\"Claude/GPT 5小时\",\"percent\":\"100%\",\"reset\":\"4h 59m\"},{\"label\":\"Claude/GPT 7天\",\"percent\":\"33%\",\"reset\":\"5d 18h\"}]},"
+"{\"id\":\"cursor\",\"name\":\"Cursor\",\"primary\":{\"label\":\"Fast Requests\",\"remainingPercent\":76.0,\"resetsAt\":\"11d 8h\",\"remainingDetails\":\"380 / 500\"},\"secondary\":{\"label\":\"Usage-based\",\"remainingPercent\":100.0},\"rows\":[{\"label\":\"Fast Requests\",\"percent\":\"76%\",\"reset\":\"11d 8h\"},{\"label\":\"Usage-based\",\"percent\":\"$25.00\",\"reset\":\"\"}]}"
+"]}\n";
 
 static void process_complete_line(char *line) {
     s_last_active_time_ms = esp_timer_get_time() / 1000;
@@ -70,8 +75,11 @@ void bt_transport_feed_bytes(const uint8_t *data, size_t len) {
 }
 
 void bt_transport_inject_demo_data(void) {
-    ESP_LOGI(TAG, "注入演示样例数据");
-    bt_transport_feed_bytes((const uint8_t *)DEMO_JSON, strlen(DEMO_JSON));
+    ESP_LOGI(TAG, "注入演示样例数据 (4 个供应商: Codex, Antigravity, Antigravity Third, Cursor)");
+    int64_t now_ts = 1789896924; // 2026-09-20 17:35:24 CST
+    char buf[2048];
+    snprintf(buf, sizeof(buf), DEMO_JSON_FORMAT, (long long)now_ts);
+    bt_transport_feed_bytes((const uint8_t *)buf, strlen(buf));
 }
 
 void bt_transport_tick(void) {
