@@ -1,0 +1,18 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "model/sync_payload.c"
+        "ui/ui_theme.c"
+        "ui/ui_dashboard.c"
+        "bt/bt_transport.c"
+    INCLUDE_DIRS
+        "."
+        "model"
+        "ui"
+        "bt"
+    REQUIRES
+        nvs_flash
+        cjson
+        freertos
+        esp_timer
+)
