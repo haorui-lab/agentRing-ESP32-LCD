@@ -35,3 +35,13 @@ provider_theme_t ui_theme_get_provider_color(const char *provider_id, bool has_s
 
     return theme;
 }
+
+lv_color_t ui_theme_get_urgency_color(double percent) {
+    if (percent <= 5.0) {
+        return COLOR_URGENCY_CRITICAL;
+    } else if (percent <= 20.0) {
+        return COLOR_URGENCY_WARNING;
+    } else {
+        return COLOR_URGENCY_NORMAL;
+    }
+}

@@ -127,12 +127,17 @@ static void configure_arc_appearance(lv_obj_t *arc, int width, lv_color_t color,
     lv_arc_set_bg_angles(arc, 0, 360);
     lv_arc_set_range(arc, 0, 100);
 
-    // Track style
+    // Transparent container
+    lv_obj_set_style_bg_opa(arc, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(arc, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(arc, 0, LV_PART_MAIN);
+
+    // Track style (完整 360 度圆环底轨，浅灰色 #EDF0F5)
     lv_obj_set_style_arc_width(arc, width, LV_PART_MAIN);
     lv_obj_set_style_arc_color(arc, track_color, LV_PART_MAIN);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
 
-    // Indicator style
+    // Indicator style (彩色用量进度弧，圆角线帽)
     lv_obj_set_style_arc_width(arc, width, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(arc, color, LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
@@ -147,16 +152,17 @@ static void configure_arc_appearance(lv_obj_t *arc, int width, lv_color_t color,
 static void build_provider_column(lv_obj_t *parent, const provider_data_t *provider, int index, int total_count) {
     provider_theme_t theme = ui_theme_get_provider_color(provider->id, provider->has_secondary);
 
-    // Responsive geometry
-    int col_w = (total_count >= 4) ? 232 : (total_count == 3 ? 310 : (total_count == 2 ? 460 : 600));
-    int ring_size = (total_count >= 4) ? 145 : (total_count == 3 ? 175 : 205);
-    int stroke_outer = (int)(ring_size * 0.12);
-    int gap = (int)(ring_size * 0.045);
-    int stroke_inner = (int)(stroke_outer * 0.85);
+    // Responsive geometry for 1024x600 IPS display
+    int col_w = (total_count >= 4) ? 246 : (total_count == 3 ? 324 : (total_count == 2 ? 486 : 600));
+    int ring_size = (total_count >= 4) ? 140 : (total_count == 3 ? 172 : 200);
+
+    // 仿 macOS agentRing / Apple Watch 规范：内外环均采用饱满等宽 12%，呼吸间隔 4.5%
+    int stroke_width = (int)(ring_size * 0.12f);
+    int gap = (int)(ring_size * 0.045f);
 
     // Column container
     lv_obj_t *col = lv_obj_create(parent);
-    lv_obj_set_size(col, col_w, 530);
+    lv_obj_set_size(col, col_w, 532);
     lv_obj_set_style_bg_color(col, COLOR_BG, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(col, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
@@ -165,64 +171,53 @@ static void build_provider_column(lv_obj_t *parent, const provider_data_t *provi
         lv_obj_set_style_border_color(col, COLOR_DIVIDER, LV_PART_MAIN);
         lv_obj_set_style_border_width(col, 1, LV_PART_MAIN);
     }
-    lv_obj_set_style_pad_all(col, 8, LV_PART_MAIN);
+    lv_obj_set_style_pad_hor(col, 8, LV_PART_MAIN);
+    lv_obj_set_style_pad_ver(col, 10, LV_PART_MAIN);
     lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(col, 12, LV_PART_MAIN);
+    lv_obj_set_style_pad_gap(col, 10, LV_PART_MAIN);
     lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
 
-    // 1. Provider Title
+    // 1. Provider Title (仿 Android column_title: #4B5563, 居中粗体)
     lv_obj_t *name_lbl = lv_label_create(col);
     lv_label_set_text(name_lbl, provider->name);
-    lv_obj_set_style_text_font(name_lbl, (total_count <= 2) ? &lv_font_montserrat_22 : &lv_font_montserrat_18, LV_PART_MAIN);
-    lv_obj_set_style_text_color(name_lbl, COLOR_TEXT_MAIN, LV_PART_MAIN);
+    lv_obj_set_style_text_font(name_lbl, (total_count <= 2) ? &lv_font_montserrat_20 : &lv_font_montserrat_18, LV_PART_MAIN);
+    lv_obj_set_style_text_color(name_lbl, COLOR_COLUMN_TITLE, LV_PART_MAIN);
     lv_obj_set_width(name_lbl, lv_pct(100));
     lv_obj_set_style_text_align(name_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_label_set_long_mode(name_lbl, LV_LABEL_LONG_DOT);
 
-    // 2. Ring Container (Concentric Rings)
+    // 2. Ring Container (Concentric Rings - 移除中央大字，纯净视觉留白)
     lv_obj_t *ring_box = lv_obj_create(col);
     lv_obj_set_size(ring_box, ring_size, ring_size);
     lv_obj_set_style_bg_opa(ring_box, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(ring_box, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(ring_box, 0, LV_PART_MAIN);
+    lv_obj_set_style_margin_ver(ring_box, 6, LV_PART_MAIN);
     lv_obj_clear_flag(ring_box, LV_OBJ_FLAG_SCROLLABLE);
 
     // Primary Arc (Outer)
     lv_obj_t *outer_arc = lv_arc_create(ring_box);
     lv_obj_set_size(outer_arc, ring_size, ring_size);
     lv_obj_align(outer_arc, LV_ALIGN_CENTER, 0, 0);
-    configure_arc_appearance(outer_arc, stroke_outer, theme.primary, COLOR_TRACK);
+    configure_arc_appearance(outer_arc, stroke_width, theme.primary, COLOR_TRACK);
 
     int outer_val = provider->has_primary ? (int)provider->primary.remaining_percent : 100;
     lv_arc_set_value(outer_arc, outer_val);
 
-    // Secondary Arc (Inner)
+    // Secondary Arc (Inner - 与外环等宽 stroke_width，严格同心)
     if (provider->has_secondary) {
-        int inner_size = ring_size - 2 * (stroke_outer + gap);
+        int inner_size = ring_size - 2 * (stroke_width + gap);
         lv_obj_t *inner_arc = lv_arc_create(ring_box);
         lv_obj_set_size(inner_arc, inner_size, inner_size);
         lv_obj_align(inner_arc, LV_ALIGN_CENTER, 0, 0);
-        configure_arc_appearance(inner_arc, stroke_inner, theme.secondary, COLOR_TRACK);
+        configure_arc_appearance(inner_arc, stroke_width, theme.secondary, COLOR_TRACK);
 
         int inner_val = (int)provider->secondary.remaining_percent;
         lv_arc_set_value(inner_arc, inner_val);
     }
 
-    // Center Percentage Text
-    lv_obj_t *pct_label = lv_label_create(ring_box);
-    char pct_str[16];
-    if (provider->has_primary) {
-        snprintf(pct_str, sizeof(pct_str), "%d%%", outer_val);
-    } else {
-        snprintf(pct_str, sizeof(pct_str), "--");
-    }
-    lv_label_set_text(pct_label, pct_str);
-    lv_obj_set_style_text_font(pct_label, (ring_size >= 190) ? &lv_font_montserrat_36 : (ring_size >= 165 ? &lv_font_montserrat_32 : &lv_font_montserrat_26), LV_PART_MAIN);
-    lv_obj_set_style_text_color(pct_label, COLOR_TEXT_MAIN, LV_PART_MAIN);
-    lv_obj_align(pct_label, LV_ALIGN_CENTER, 0, 0);
-
-    // 3. Capsule Rows Container
+    // 3. Flat Rows Container (仿 agentRing-Android 扁平列表，无臃肿卡片，行间 1px 浅灰细线)
     lv_obj_t *rows_box = lv_obj_create(col);
     lv_obj_set_width(rows_box, lv_pct(100));
     lv_obj_set_height(rows_box, LV_SIZE_CONTENT);
@@ -230,74 +225,75 @@ static void build_provider_column(lv_obj_t *parent, const provider_data_t *provi
     lv_obj_set_style_border_width(rows_box, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(rows_box, 0, LV_PART_MAIN);
     lv_obj_set_flex_flow(rows_box, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_gap(rows_box, 8, LV_PART_MAIN);
+    lv_obj_set_style_pad_gap(rows_box, 2, LV_PART_MAIN);
     lv_obj_clear_flag(rows_box, LV_OBJ_FLAG_SCROLLABLE);
 
     for (int r = 0; r < provider->row_count; r++) {
         const limit_row_t *row = &provider->rows[r];
 
-        // 2-Line Structured Capsule Card
-        lv_obj_t *capsule = lv_obj_create(rows_box);
-        lv_obj_set_width(capsule, lv_pct(100));
-        lv_obj_set_height(capsule, 56);
-        lv_obj_set_style_bg_color(capsule, COLOR_CAPSULE_BG, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(capsule, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_border_width(capsule, 0, LV_PART_MAIN);
-        lv_obj_set_style_radius(capsule, 10, LV_PART_MAIN);
-        lv_obj_set_style_pad_hor(capsule, 12, LV_PART_MAIN);
-        lv_obj_set_style_pad_ver(capsule, 8, LV_PART_MAIN);
-        lv_obj_clear_flag(capsule, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_flex_flow(capsule, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(capsule, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
+        // 行间 1px 极细浅灰分割线 (仿 Android row_divider #ECEEF1)
+        if (r > 0) {
+            lv_obj_t *divider = lv_obj_create(rows_box);
+            lv_obj_set_size(divider, lv_pct(100), 1);
+            lv_obj_set_style_bg_color(divider, COLOR_ROW_DIVIDER, LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, LV_PART_MAIN);
+            lv_obj_set_style_border_width(divider, 0, LV_PART_MAIN);
+            lv_obj_set_style_pad_all(divider, 0, LV_PART_MAIN);
+            lv_obj_set_style_margin_ver(divider, 2, LV_PART_MAIN);
+            lv_obj_clear_flag(divider, LV_OBJ_FLAG_SCROLLABLE);
+        }
 
-        // Top Row: [Label] ---------------- [Percent]
-        lv_obj_t *row_top = lv_obj_create(capsule);
-        lv_obj_set_width(row_top, lv_pct(100));
-        lv_obj_set_height(row_top, LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_opa(row_top, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(row_top, 0, LV_PART_MAIN);
-        lv_obj_set_style_pad_all(row_top, 0, LV_PART_MAIN);
-        lv_obj_clear_flag(row_top, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_flex_flow(row_top, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row_top, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        // 单行三通道横向对齐容器: [Label] ------------ [Percent] [Reset]
+        lv_obj_t *row_cont = lv_obj_create(rows_box);
+        lv_obj_set_width(row_cont, lv_pct(100));
+        lv_obj_set_height(row_cont, 30);
+        lv_obj_set_style_bg_opa(row_cont, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(row_cont, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_hor(row_cont, 2, LV_PART_MAIN);
+        lv_obj_set_style_pad_ver(row_cont, 0, LV_PART_MAIN);
+        lv_obj_clear_flag(row_cont, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(row_cont, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row_cont, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-        lv_obj_t *r_lbl = lv_label_create(row_top);
-        lv_obj_set_width(r_lbl, 140);
+        // 通道 1: 额度名称 (左对齐)
+        lv_obj_t *r_lbl = lv_label_create(row_cont);
+        int label_w = (total_count >= 4) ? 96 : 130;
+        lv_obj_set_width(r_lbl, label_w);
         lv_label_set_long_mode(r_lbl, LV_LABEL_LONG_DOT);
         lv_label_set_text(r_lbl, row->label);
         lv_obj_set_style_text_font(r_lbl, &ui_font_chinese_16, LV_PART_MAIN);
-        lv_obj_set_style_text_color(r_lbl, COLOR_TEXT_MUTED, LV_PART_MAIN);
+        lv_obj_set_style_text_color(r_lbl, COLOR_TEXT_SECONDARY, LV_PART_MAIN);
 
-        lv_obj_t *p_lbl = lv_label_create(row_top);
-        lv_obj_set_width(p_lbl, 60);
+        // 通道 2: 百分比 (加粗、右对齐、告急变色)
+        lv_obj_t *p_lbl = lv_label_create(row_cont);
+        lv_obj_set_width(p_lbl, 50);
         lv_obj_set_style_text_align(p_lbl, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
-        lv_label_set_text(p_lbl, row->percent);
+
+        char p_str[32];
+        double p_val = 100.0;
+        if (r == 0 && provider->has_primary) {
+            p_val = provider->primary.remaining_percent;
+            snprintf(p_str, sizeof(p_str), "%d%%", (int)p_val);
+        } else if (r == 1 && provider->has_secondary) {
+            p_val = provider->secondary.remaining_percent;
+            snprintf(p_str, sizeof(p_str), "%d%%", (int)p_val);
+        } else {
+            p_val = atof(row->percent);
+            snprintf(p_str, sizeof(p_str), "%s", row->percent);
+        }
+        lv_label_set_text(p_lbl, p_str);
         lv_obj_set_style_text_font(p_lbl, &lv_font_montserrat_16, LV_PART_MAIN);
-        lv_obj_set_style_text_color(p_lbl, COLOR_TEXT_MAIN, LV_PART_MAIN);
+        lv_obj_set_style_text_color(p_lbl, ui_theme_get_urgency_color(p_val), LV_PART_MAIN);
 
-        // Bottom Row: [Subtitle] ---------- [Reset Time]
-        lv_obj_t *row_bot = lv_obj_create(capsule);
-        lv_obj_set_width(row_bot, lv_pct(100));
-        lv_obj_set_height(row_bot, LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_opa(row_bot, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(row_bot, 0, LV_PART_MAIN);
-        lv_obj_set_style_pad_all(row_bot, 0, LV_PART_MAIN);
-        lv_obj_clear_flag(row_bot, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_flex_flow(row_bot, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row_bot, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-        lv_obj_t *sub_lbl = lv_label_create(row_bot);
-        lv_label_set_text(sub_lbl, (row->reset[0] != '\0') ? "重置" : "计费");
-        lv_obj_set_style_text_font(sub_lbl, &ui_font_chinese_16, LV_PART_MAIN);
-        lv_obj_set_style_text_color(sub_lbl, COLOR_TEXT_LIGHT, LV_PART_MAIN);
-
-        lv_obj_t *rst_lbl = lv_label_create(row_bot);
-        lv_obj_set_width(rst_lbl, 140);
+        // 通道 3: 重置时间 / 计费说明 (固定通道右对齐)
+        lv_obj_t *rst_lbl = lv_label_create(row_cont);
+        int rst_w = (total_count >= 4) ? 72 : 90;
+        lv_obj_set_width(rst_lbl, rst_w);
         lv_obj_set_style_text_align(rst_lbl, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
         lv_label_set_long_mode(rst_lbl, LV_LABEL_LONG_DOT);
-        lv_label_set_text(rst_lbl, (row->reset[0] != '\0') ? row->reset : "按量使用");
+        lv_label_set_text(rst_lbl, row->reset);
         lv_obj_set_style_text_font(rst_lbl, &ui_font_chinese_16, LV_PART_MAIN);
-        lv_obj_set_style_text_color(rst_lbl, COLOR_TEXT_LIGHT, LV_PART_MAIN);
+        lv_obj_set_style_text_color(rst_lbl, COLOR_TEXT_SECONDARY, LV_PART_MAIN);
     }
 }
 
@@ -320,11 +316,11 @@ void ui_dashboard_init(void) {
     lv_obj_set_style_bg_color(s_columns_cont, COLOR_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_columns_cont, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(s_columns_cont, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_hor(s_columns_cont, 12, LV_PART_MAIN);
+    lv_obj_set_style_pad_hor(s_columns_cont, 6, LV_PART_MAIN);
     lv_obj_set_style_pad_ver(s_columns_cont, 8, LV_PART_MAIN);
     lv_obj_set_flex_flow(s_columns_cont, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(s_columns_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(s_columns_cont, 12, LV_PART_MAIN);
+    lv_obj_set_style_pad_gap(s_columns_cont, 8, LV_PART_MAIN);
     lv_obj_clear_flag(s_columns_cont, LV_OBJ_FLAG_SCROLLABLE);
 
     // Initially show empty state
