@@ -4,11 +4,7 @@
  * Opts: --size 16 --bpp 4 --font /Library/Fonts/Arial Unicode.ttf -r 0x20-0x7F --symbols 天小时周月日分秒已连接等待尚未同步广播最后更新剩余重置额度用量状态开启关闭测试请在状态栏打开并启用蓝牙副屏设备名条次每•…：，。！？（） --format lvgl -o /Users/haorui/Code/github.com/agentRing-ESP-LCD/main/ui/ui_font_chinese_16.c --lv-font-name ui_font_chinese_16
  ******************************************************************************/
 
-#ifdef LV_LVGL_H_INCLUDE_SIMPLE
 #include "lvgl.h"
-#else
-#include "lvgl/lvgl.h"
-#endif
 
 #ifndef UI_FONT_CHINESE_16
 #define UI_FONT_CHINESE_16 1

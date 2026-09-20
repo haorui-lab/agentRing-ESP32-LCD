@@ -18,7 +18,6 @@ static lv_obj_t *s_device_name_label = NULL;
 static lv_obj_t *s_updated_label = NULL;
 
 // Content area
-static lv_obj_t *s_content_area = NULL;
 static lv_obj_t *s_empty_state = NULL;
 static lv_obj_t *s_columns_cont = NULL;
 
