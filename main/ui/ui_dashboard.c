@@ -17,6 +17,10 @@ static lv_obj_t *s_status_label = NULL;
 static lv_obj_t *s_device_name_label = NULL;
 static lv_obj_t *s_updated_label = NULL;
 
+// Bottom Bar widgets
+static lv_obj_t *s_bottom_bar = NULL;
+static lv_obj_t *s_sync_info_label = NULL;
+
 // Content area
 static lv_obj_t *s_empty_state = NULL;
 static lv_obj_t *s_columns_cont = NULL;
@@ -27,7 +31,7 @@ static bool s_has_cached_payload = false;
 
 static void create_top_bar(lv_obj_t *parent) {
     s_top_bar = lv_obj_create(parent);
-    lv_obj_set_size(s_top_bar, 1024, 48);
+    lv_obj_set_size(s_top_bar, 1024, 44);
     lv_obj_set_pos(s_top_bar, 0, 0);
     lv_obj_set_style_bg_color(s_top_bar, COLOR_CARD_BG, LV_PART_MAIN);
     lv_obj_set_style_border_side(s_top_bar, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN);
@@ -35,7 +39,7 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_obj_set_style_border_width(s_top_bar, 1, LV_PART_MAIN);
     lv_obj_set_style_radius(s_top_bar, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_hor(s_top_bar, 24, LV_PART_MAIN);
-    lv_obj_set_style_pad_ver(s_top_bar, 8, LV_PART_MAIN);
+    lv_obj_set_style_pad_ver(s_top_bar, 6, LV_PART_MAIN);
     lv_obj_clear_flag(s_top_bar, LV_OBJ_FLAG_SCROLLABLE);
 
     // Left container: dot + status + device name
@@ -51,7 +55,7 @@ static void create_top_bar(lv_obj_t *parent) {
 
     // Status Dot
     s_status_dot = lv_obj_create(left_cont);
-    lv_obj_set_size(s_status_dot, 12, 12);
+    lv_obj_set_size(s_status_dot, 10, 10);
     lv_obj_set_style_radius(s_status_dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_bg_color(s_status_dot, COLOR_STATUS_BLUE, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_status_dot, 0, LV_PART_MAIN);
@@ -82,10 +86,30 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_obj_align(s_updated_label, LV_ALIGN_RIGHT_MID, 0, 0);
 }
 
+static void create_bottom_bar(lv_obj_t *parent) {
+    s_bottom_bar = lv_obj_create(parent);
+    lv_obj_set_size(s_bottom_bar, 1024, 38);
+    lv_obj_set_pos(s_bottom_bar, 0, 562);
+    lv_obj_set_style_bg_color(s_bottom_bar, COLOR_CARD_BG, LV_PART_MAIN);
+    lv_obj_set_style_border_side(s_bottom_bar, LV_BORDER_SIDE_TOP, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_bottom_bar, COLOR_DIVIDER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_bottom_bar, 1, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_bottom_bar, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_hor(s_bottom_bar, 20, LV_PART_MAIN);
+    lv_obj_set_style_pad_ver(s_bottom_bar, 6, LV_PART_MAIN);
+    lv_obj_clear_flag(s_bottom_bar, LV_OBJ_FLAG_SCROLLABLE);
+
+    s_sync_info_label = lv_label_create(s_bottom_bar);
+    lv_label_set_text(s_sync_info_label, "数据源自 Mac 端 AgentRing 本地低功耗蓝牙 (BLE GATT) 实时推流 • 本地直连 • 15 秒保活同步");
+    lv_obj_set_style_text_font(s_sync_info_label, &ui_font_chinese_16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_sync_info_label, COLOR_TEXT_TERTIARY, LV_PART_MAIN);
+    lv_obj_align(s_sync_info_label, LV_ALIGN_CENTER, 0, 0);
+}
+
 static void create_empty_state(lv_obj_t *parent) {
     s_empty_state = lv_obj_create(parent);
-    lv_obj_set_size(s_empty_state, 1024, 552);
-    lv_obj_set_pos(s_empty_state, 0, 48);
+    lv_obj_set_size(s_empty_state, 1024, 518);
+    lv_obj_set_pos(s_empty_state, 0, 44);
     lv_obj_set_style_bg_color(s_empty_state, COLOR_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_empty_state, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(s_empty_state, 0, LV_PART_MAIN);
@@ -154,15 +178,15 @@ static void build_provider_column(lv_obj_t *parent, const provider_data_t *provi
 
     // Responsive geometry for 1024x600 IPS display
     int col_w = (total_count >= 4) ? 246 : (total_count == 3 ? 324 : (total_count == 2 ? 486 : 600));
-    int ring_size = (total_count >= 4) ? 140 : (total_count == 3 ? 172 : 200);
+    int ring_size = (total_count >= 4) ? 152 : (total_count == 3 ? 176 : 204);
 
     // 仿 macOS agentRing / Apple Watch 规范：内外环均采用饱满等宽 12%，呼吸间隔 4.5%
     int stroke_width = (int)(ring_size * 0.12f);
     int gap = (int)(ring_size * 0.045f);
 
-    // Column container
+    // Column container (518px height between top bar and bottom footer)
     lv_obj_t *col = lv_obj_create(parent);
-    lv_obj_set_size(col, col_w, 532);
+    lv_obj_set_size(col, col_w, 518);
     lv_obj_set_style_bg_color(col, COLOR_BG, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(col, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
@@ -172,10 +196,12 @@ static void build_provider_column(lv_obj_t *parent, const provider_data_t *provi
         lv_obj_set_style_border_width(col, 1, LV_PART_MAIN);
     }
     lv_obj_set_style_pad_hor(col, 8, LV_PART_MAIN);
-    lv_obj_set_style_pad_ver(col, 10, LV_PART_MAIN);
+    // Vertical centering offset (pushes rings down to screen center)
+    lv_obj_set_style_pad_top(col, 95, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(col, 10, LV_PART_MAIN);
     lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(col, 10, LV_PART_MAIN);
+    lv_obj_set_style_pad_gap(col, 14, LV_PART_MAIN);
     lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
 
     // 1. Provider Title (仿 Android column_title: #4B5563, 居中粗体)
@@ -307,17 +333,18 @@ void ui_dashboard_init(void) {
     lv_obj_clear_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
 
     create_top_bar(s_root);
+    create_bottom_bar(s_root);
     create_empty_state(s_root);
 
-    // Columns Container
+    // Columns Container (Between top bar 44px and bottom footer 562px)
     s_columns_cont = lv_obj_create(s_root);
-    lv_obj_set_size(s_columns_cont, 1024, 552);
-    lv_obj_set_pos(s_columns_cont, 0, 48);
+    lv_obj_set_size(s_columns_cont, 1024, 518);
+    lv_obj_set_pos(s_columns_cont, 0, 44);
     lv_obj_set_style_bg_color(s_columns_cont, COLOR_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_columns_cont, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(s_columns_cont, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_hor(s_columns_cont, 6, LV_PART_MAIN);
-    lv_obj_set_style_pad_ver(s_columns_cont, 8, LV_PART_MAIN);
+    lv_obj_set_style_pad_ver(s_columns_cont, 0, LV_PART_MAIN);
     lv_obj_set_flex_flow(s_columns_cont, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(s_columns_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(s_columns_cont, 8, LV_PART_MAIN);
