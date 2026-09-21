@@ -4,6 +4,9 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "bsp/display.h"
 
 LV_FONT_DECLARE(ui_font_chinese_16);
 LV_FONT_DECLARE(ui_font_chinese_22);
@@ -16,6 +19,16 @@ static lv_obj_t *s_status_dot = NULL;
 static lv_obj_t *s_status_label = NULL;
 static lv_obj_t *s_device_name_label = NULL;
 static lv_obj_t *s_updated_label = NULL;
+static lv_obj_t *s_brightness_btn = NULL;
+static lv_obj_t *s_brightness_btn_label = NULL;
+
+// Brightness Dropdown Panel widgets
+static lv_obj_t *s_backdrop = NULL;
+static lv_obj_t *s_brightness_panel = NULL;
+static lv_obj_t *s_brightness_slider = NULL;
+static lv_obj_t *s_brightness_val_label = NULL;
+static lv_obj_t *s_preset_btns[4] = {NULL};
+static int s_current_brightness = 100;
 
 // Bottom Bar widgets
 static lv_obj_t *s_bottom_bar = NULL;
@@ -29,6 +42,134 @@ static lv_obj_t *s_columns_cont = NULL;
 static sync_payload_t s_cached_payload;
 static bool s_has_cached_payload = false;
 
+static const int PRESET_VALUES[4] = {25, 50, 75, 100};
+static const char *PRESET_LABELS[4] = {"25% 低亮", "50% 中亮", "75% 高亮", "100% 极亮"};
+
+static void save_brightness_to_nvs(int val) {
+    nvs_handle_t handle;
+    if (nvs_open("settings", NVS_READWRITE, &handle) == ESP_OK) {
+        nvs_set_u8(handle, "brightness", (uint8_t)val);
+        nvs_commit(handle);
+        nvs_close(handle);
+    }
+}
+
+int ui_dashboard_get_brightness(void) {
+    nvs_handle_t handle;
+    uint8_t val = 100;
+    if (nvs_open("settings", NVS_READONLY, &handle) == ESP_OK) {
+        nvs_get_u8(handle, "brightness", &val);
+        nvs_close(handle);
+    }
+    if (val < 10) val = 10;
+    if (val > 100) val = 100;
+    s_current_brightness = val;
+    return s_current_brightness;
+}
+
+static void update_preset_buttons_highlight(int current_val) {
+    for (int i = 0; i < 4; i++) {
+        if (!s_preset_btns[i]) continue;
+        bool is_active = (current_val == PRESET_VALUES[i]);
+        if (is_active) {
+            lv_obj_set_style_bg_color(s_preset_btns[i], COLOR_STATUS_BLUE, LV_PART_MAIN);
+            lv_obj_set_style_border_color(s_preset_btns[i], COLOR_STATUS_BLUE, LV_PART_MAIN);
+            lv_obj_t *label = lv_obj_get_child(s_preset_btns[i], 0);
+            if (label) lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+        } else {
+            lv_obj_set_style_bg_color(s_preset_btns[i], COLOR_CAPSULE_BG, LV_PART_MAIN);
+            lv_obj_set_style_border_color(s_preset_btns[i], COLOR_DIVIDER, LV_PART_MAIN);
+            lv_obj_t *label = lv_obj_get_child(s_preset_btns[i], 0);
+            if (label) lv_obj_set_style_text_color(label, COLOR_TEXT_SECONDARY, LV_PART_MAIN);
+        }
+    }
+}
+
+void ui_dashboard_set_brightness(int val, bool save_nvs) {
+    if (val < 10) val = 10;
+    if (val > 100) val = 100;
+    s_current_brightness = val;
+
+    bsp_display_brightness_set(val);
+
+    if (save_nvs) {
+        save_brightness_to_nvs(val);
+    }
+
+    if (s_brightness_btn_label) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "亮度 %d%%", val);
+        lv_label_set_text(s_brightness_btn_label, buf);
+    }
+    if (s_brightness_val_label) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%d%%", val);
+        lv_label_set_text(s_brightness_val_label, buf);
+    }
+    if (s_brightness_slider && lv_slider_get_value(s_brightness_slider) != val) {
+        lv_slider_set_value(s_brightness_slider, val, LV_ANIM_OFF);
+    }
+    update_preset_buttons_highlight(val);
+}
+
+static void ui_dashboard_show_brightness_panel(void) {
+    if (!s_brightness_panel || !s_backdrop) return;
+    lv_obj_move_foreground(s_backdrop);
+    lv_obj_move_foreground(s_brightness_panel);
+    lv_obj_clear_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(s_brightness_panel, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void ui_dashboard_hide_brightness_panel(void) {
+    if (!s_brightness_panel || !s_backdrop) return;
+    lv_obj_add_flag(s_brightness_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void ui_dashboard_toggle_brightness_panel(void) {
+    if (!s_brightness_panel) return;
+    if (lv_obj_has_flag(s_brightness_panel, LV_OBJ_FLAG_HIDDEN)) {
+        ui_dashboard_show_brightness_panel();
+    } else {
+        ui_dashboard_hide_brightness_panel();
+    }
+}
+
+static void brightness_btn_click_cb(lv_event_t *e) {
+    ui_dashboard_toggle_brightness_panel();
+}
+
+static void top_bar_click_cb(lv_event_t *e) {
+    lv_obj_t *target = lv_event_get_target(e);
+    if (target == s_top_bar) {
+        ui_dashboard_toggle_brightness_panel();
+    }
+}
+
+static void backdrop_click_cb(lv_event_t *e) {
+    ui_dashboard_hide_brightness_panel();
+}
+
+static void slider_event_cb(lv_event_t *e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t *slider = lv_event_get_target(e);
+    int val = lv_slider_get_value(slider);
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        ui_dashboard_set_brightness(val, false);
+    } else if (code == LV_EVENT_RELEASED) {
+        ui_dashboard_set_brightness(val, true);
+    }
+}
+
+static void preset_btn_click_cb(lv_event_t *e) {
+    int val = (int)(intptr_t)lv_event_get_user_data(e);
+    ui_dashboard_set_brightness(val, true);
+}
+
+static void close_btn_click_cb(lv_event_t *e) {
+    ui_dashboard_hide_brightness_panel();
+}
+
 static void create_top_bar(lv_obj_t *parent) {
     s_top_bar = lv_obj_create(parent);
     lv_obj_set_size(s_top_bar, 1024, 44);
@@ -41,6 +182,7 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_obj_set_style_pad_hor(s_top_bar, 24, LV_PART_MAIN);
     lv_obj_set_style_pad_ver(s_top_bar, 6, LV_PART_MAIN);
     lv_obj_clear_flag(s_top_bar, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(s_top_bar, top_bar_click_cb, LV_EVENT_CLICKED, NULL);
 
     // Left container: dot + status + device name
     lv_obj_t *left_cont = lv_obj_create(s_top_bar);
@@ -78,12 +220,43 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_obj_set_style_text_color(s_device_name_label, COLOR_TEXT_MAIN, LV_PART_MAIN);
     lv_obj_set_style_text_font(s_device_name_label, &lv_font_montserrat_16, LV_PART_MAIN);
 
+    // Right container: Last Updated + Brightness Pill Button
+    lv_obj_t *right_cont = lv_obj_create(s_top_bar);
+    lv_obj_set_size(right_cont, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(right_cont, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(right_cont, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(right_cont, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(right_cont, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(right_cont, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(right_cont, 14, LV_PART_MAIN);
+    lv_obj_align(right_cont, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_clear_flag(right_cont, LV_OBJ_FLAG_SCROLLABLE);
+
     // Right label: Last Updated
-    s_updated_label = lv_label_create(s_top_bar);
+    s_updated_label = lv_label_create(right_cont);
     lv_label_set_text(s_updated_label, "尚未同步");
     lv_obj_set_style_text_color(s_updated_label, COLOR_TEXT_LIGHT, LV_PART_MAIN);
     lv_obj_set_style_text_font(s_updated_label, &ui_font_chinese_16, LV_PART_MAIN);
-    lv_obj_align(s_updated_label, LV_ALIGN_RIGHT_MID, 0, 0);
+
+    // Brightness Pill Button
+    s_brightness_btn = lv_btn_create(right_cont);
+    lv_obj_set_size(s_brightness_btn, LV_SIZE_CONTENT, 28);
+    lv_obj_set_style_radius(s_brightness_btn, 14, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_brightness_btn, COLOR_CAPSULE_BG, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_brightness_btn, COLOR_DIVIDER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_brightness_btn, 1, LV_PART_MAIN);
+    lv_obj_set_style_pad_hor(s_brightness_btn, 10, LV_PART_MAIN);
+    lv_obj_set_style_pad_ver(s_brightness_btn, 2, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(s_brightness_btn, 0, LV_PART_MAIN);
+    lv_obj_add_event_cb(s_brightness_btn, brightness_btn_click_cb, LV_EVENT_CLICKED, NULL);
+
+    s_brightness_btn_label = lv_label_create(s_brightness_btn);
+    char init_b_str[32];
+    snprintf(init_b_str, sizeof(init_b_str), "亮度 %d%%", s_current_brightness);
+    lv_label_set_text(s_brightness_btn_label, init_b_str);
+    lv_obj_set_style_text_font(s_brightness_btn_label, &ui_font_chinese_16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_brightness_btn_label, COLOR_TEXT_PRIMARY, LV_PART_MAIN);
+    lv_obj_align(s_brightness_btn_label, LV_ALIGN_CENTER, 0, 0);
 }
 
 static void create_bottom_bar(lv_obj_t *parent) {
@@ -323,8 +496,137 @@ static void build_provider_column(lv_obj_t *parent, const provider_data_t *provi
     }
 }
 
+static void create_brightness_dropdown(lv_obj_t *parent) {
+    // 1. Semi-transparent backdrop to capture outside taps
+    s_backdrop = lv_obj_create(parent);
+    lv_obj_set_size(s_backdrop, 1024, 600);
+    lv_obj_set_pos(s_backdrop, 0, 0);
+    lv_obj_set_style_bg_color(s_backdrop, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_backdrop, LV_OPA_20, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_backdrop, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_backdrop, 0, LV_PART_MAIN);
+    lv_obj_clear_flag(s_backdrop, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(s_backdrop, backdrop_click_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN);
+
+    // 2. Control Panel Card (Apple Control Center style)
+    s_brightness_panel = lv_obj_create(parent);
+    lv_obj_set_size(s_brightness_panel, 460, 204);
+    lv_obj_set_pos(s_brightness_panel, 282, 48); // Centered horizontally below top bar
+    lv_obj_set_style_bg_color(s_brightness_panel, COLOR_CARD_BG, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_brightness_panel, COLOR_DIVIDER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_brightness_panel, 1, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_brightness_panel, 16, LV_PART_MAIN);
+    lv_obj_set_style_shadow_color(s_brightness_panel, lv_color_hex(0x000000), LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(s_brightness_panel, 30, LV_PART_MAIN);
+    lv_obj_set_style_shadow_opa(s_brightness_panel, LV_OPA_10, LV_PART_MAIN);
+    lv_obj_set_style_shadow_offset_y(s_brightness_panel, 6, LV_PART_MAIN);
+    lv_obj_set_style_pad_hor(s_brightness_panel, 20, LV_PART_MAIN);
+    lv_obj_set_style_pad_ver(s_brightness_panel, 16, LV_PART_MAIN);
+    lv_obj_set_flex_flow(s_brightness_panel, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_gap(s_brightness_panel, 14, LV_PART_MAIN);
+    lv_obj_clear_flag(s_brightness_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(s_brightness_panel, LV_OBJ_FLAG_HIDDEN);
+
+    // Header Row: Title + Percentage Badge + Close Button
+    lv_obj_t *header_row = lv_obj_create(s_brightness_panel);
+    lv_obj_set_size(header_row, lv_pct(100), 28);
+    lv_obj_set_style_bg_opa(header_row, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(header_row, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(header_row, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(header_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(header_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(header_row, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Header Left: "屏幕亮度调节"
+    lv_obj_t *title = lv_label_create(header_row);
+    lv_label_set_text(title, "屏幕亮度调节");
+    lv_obj_set_style_text_font(title, &ui_font_chinese_16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(title, COLOR_TEXT_PRIMARY, LV_PART_MAIN);
+
+    // Header Right Container: Badge + Close
+    lv_obj_t *hdr_right = lv_obj_create(header_row);
+    lv_obj_set_size(hdr_right, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(hdr_right, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(hdr_right, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(hdr_right, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(hdr_right, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(hdr_right, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_gap(hdr_right, 10, LV_PART_MAIN);
+    lv_obj_clear_flag(hdr_right, LV_OBJ_FLAG_SCROLLABLE);
+
+    s_brightness_val_label = lv_label_create(hdr_right);
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d%%", s_current_brightness);
+    lv_label_set_text(s_brightness_val_label, buf);
+    lv_obj_set_style_text_font(s_brightness_val_label, &lv_font_montserrat_16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_brightness_val_label, COLOR_STATUS_BLUE, LV_PART_MAIN);
+
+    lv_obj_t *close_btn = lv_btn_create(hdr_right);
+    lv_obj_set_size(close_btn, 24, 24);
+    lv_obj_set_style_radius(close_btn, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(close_btn, COLOR_CAPSULE_BG, LV_PART_MAIN);
+    lv_obj_set_style_border_width(close_btn, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(close_btn, 0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(close_btn, 0, LV_PART_MAIN);
+    lv_obj_add_event_cb(close_btn, close_btn_click_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *close_lbl = lv_label_create(close_btn);
+    lv_label_set_text(close_lbl, "✕");
+    lv_obj_set_style_text_font(close_lbl, &ui_font_chinese_16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(close_lbl, COLOR_TEXT_SECONDARY, LV_PART_MAIN);
+    lv_obj_align(close_lbl, LV_ALIGN_CENTER, 0, 0);
+
+    // Slider Row
+    s_brightness_slider = lv_slider_create(s_brightness_panel);
+    lv_obj_set_size(s_brightness_slider, lv_pct(100), 22);
+    lv_slider_set_range(s_brightness_slider, 10, 100);
+    lv_slider_set_value(s_brightness_slider, s_current_brightness, LV_ANIM_OFF);
+    lv_obj_set_style_radius(s_brightness_slider, 11, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_brightness_slider, COLOR_TRACK, LV_PART_MAIN);
+
+    lv_obj_set_style_radius(s_brightness_slider, 11, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(s_brightness_slider, COLOR_STATUS_BLUE, LV_PART_INDICATOR);
+
+    lv_obj_set_style_radius(s_brightness_slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+    lv_obj_set_style_bg_color(s_brightness_slider, COLOR_CARD_BG, LV_PART_KNOB);
+    lv_obj_set_style_border_color(s_brightness_slider, COLOR_STATUS_BLUE, LV_PART_KNOB);
+    lv_obj_set_style_border_width(s_brightness_slider, 3, LV_PART_KNOB);
+    lv_obj_set_style_pad_all(s_brightness_slider, 4, LV_PART_KNOB);
+    lv_obj_add_event_cb(s_brightness_slider, slider_event_cb, LV_EVENT_ALL, NULL);
+
+    // Preset Buttons Row
+    lv_obj_t *preset_row = lv_obj_create(s_brightness_panel);
+    lv_obj_set_size(preset_row, lv_pct(100), 40);
+    lv_obj_set_style_bg_opa(preset_row, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(preset_row, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(preset_row, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(preset_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(preset_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(preset_row, LV_OBJ_FLAG_SCROLLABLE);
+
+    for (int i = 0; i < 4; i++) {
+        s_preset_btns[i] = lv_btn_create(preset_row);
+        lv_obj_set_size(s_preset_btns[i], 98, 36);
+        lv_obj_set_style_radius(s_preset_btns[i], 8, LV_PART_MAIN);
+        lv_obj_set_style_border_width(s_preset_btns[i], 1, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(s_preset_btns[i], 0, LV_PART_MAIN);
+        lv_obj_set_style_shadow_width(s_preset_btns[i], 0, LV_PART_MAIN);
+        lv_obj_add_event_cb(s_preset_btns[i], preset_btn_click_cb, LV_EVENT_CLICKED, (void *)(intptr_t)PRESET_VALUES[i]);
+
+        lv_obj_t *btn_lbl = lv_label_create(s_preset_btns[i]);
+        lv_label_set_text(btn_lbl, PRESET_LABELS[i]);
+        lv_obj_set_style_text_font(btn_lbl, &ui_font_chinese_16, LV_PART_MAIN);
+        lv_obj_align(btn_lbl, LV_ALIGN_CENTER, 0, 0);
+    }
+
+    update_preset_buttons_highlight(s_current_brightness);
+}
+
 void ui_dashboard_init(void) {
     if (s_root) return;
+
+    ui_dashboard_get_brightness();
 
     s_root = lv_scr_act();
     lv_obj_clean(s_root);
@@ -353,6 +655,9 @@ void ui_dashboard_init(void) {
     // Initially show empty state
     lv_obj_add_flag(s_columns_cont, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(s_empty_state, LV_OBJ_FLAG_HIDDEN);
+
+    // Brightness Control Panel Dropdown (Top layer)
+    create_brightness_dropdown(s_root);
 }
 
 void ui_dashboard_set_bt_status(ui_bt_state_t state, const char *detail) {

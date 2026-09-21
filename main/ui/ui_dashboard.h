@@ -37,6 +37,19 @@ void ui_dashboard_set_device_name(const char *name);
  */
 void ui_dashboard_update_payload(const sync_payload_t *payload);
 
+/**
+ * @brief Get current screen brightness from NVS (10-100)
+ */
+int ui_dashboard_get_brightness(void);
+
+/**
+ * @brief Set screen brightness and update UI
+ * @param val Brightness percent (10-100)
+ * @param save_nvs Whether to persist to NVS
+ */
+void ui_dashboard_set_brightness(int val, bool save_nvs);
+
 #ifdef __cplusplus
 }
 #endif
+

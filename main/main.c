@@ -65,6 +65,9 @@ void app_main(void) {
     // 3. Initialize UI Dashboard
     if (bsp_display_lock(-1)) {
         ui_dashboard_init();
+        int initial_brightness = ui_dashboard_get_brightness();
+        bsp_display_brightness_set(initial_brightness);
+        ESP_LOGI(TAG, "恢复屏幕背光亮度: %d%%", initial_brightness);
         ui_dashboard_set_device_name("AgentRing-ESP32-LCD");
         ui_dashboard_set_bt_status(UI_BT_STATE_ADVERTISING, "广播就绪，等待 Mac 连接…");
         bsp_display_unlock();
