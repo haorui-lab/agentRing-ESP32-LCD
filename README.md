@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License">
 </p>
 
-基于 **ESP32-P4** 高性能双核 RISC-V 芯片与 **LVGL 9** 打造的独立桌面硬件副屏固件。通过低功耗蓝牙 (BLE 5.0 GATT) 或 USB-C 串口，无缝直连 macOS 状态栏应用 **[AgentRing](https://github.com/davidhoo/agentRing)**，实时呈现各大主流 AI 编程助手（**Codex / Antigravity / Claude / GPT / Cursor**）的额度同心圆环、剩余百分比与重置倒计时。
+基于 **ESP32-P4** 高性能双核 RISC-V 芯片与 **LVGL 9** 打造的独立桌面硬件副屏固件。通过低功耗蓝牙 (BLE 5.0 GATT) 或 USB-C 串口，无缝直连 macOS 状态栏应用 **[AgentRing](https://github.com/haorui-lab/agentRing)**，实时呈现各大主流 AI 编程助手（**Codex / Antigravity / Claude / GPT / Cursor**）的额度同心圆环、剩余百分比与重置倒计时。
 
 遵循 Apple HIG 与 Apple Watch Activity Rings 设计语言，提供清爽无扰、通电即连、零云端中转的硬件级极客桌面摆件。
 
@@ -43,7 +43,7 @@
 └───────────────────────────────────┘
 ```
 
-- **与 macOS [AgentRing](https://github.com/davidhoo/agentRing) 的关系**：
+- **与 macOS [AgentRing](https://github.com/haorui-lab/agentRing) 的关系**：
   - **AgentRing (Mac)** 是**数据源与主控端**，负责与各大 AI Provider 交互，计算最新用量。
   - **AgentRing-ESP32-LCD** 是**纯净展示终端**，板端无需配置任何 API Key，也无需连接外网 Wi-Fi，所有数据均来自 Mac 本地通过蓝牙/串口的加密直连推流。
 - **与 [agentRing-Android](https://github.com/davidhoo/agentRing-Android) 的关系**：
@@ -63,6 +63,14 @@
   - **双环等宽饱满规范**：单窗口供应商呈现单圈大环，双窗口（如 Antigravity 5小时 + 7天）呈现同心内外双环，内外环均为等宽 18px 饱满线宽与 4.5% 呼吸间隙。
   - **三通道扁平明细行**：左侧额度名、中间加粗百分比（支持用量告急分级着色：正常 `#111827`、≤20% 警告橙 `#EA580C`、≤5% 严重告急红 `#DC2626`）、右侧重置倒计时。
   - **macOS 原生底色**：采用柔和的浅灰护眼底色（`#F5F6F8`），搭配轻量级顶部状态栏与底部同步说明栏。
+- 🕒 **实时时钟与状态中枢**：
+  - 顶部状态栏居中高清晰呈现当前实时日期、星期与动态时钟走时（例如 `2026年9月21日 星期一 10:10:45`）；
+  - 数据每次由 Mac 同步时自动无感校正 ESP32 硬件 RTC，高精度精准走时。
+- 💡 **下拉触控控制中心（背光亮度无级调节）**：
+  - 点击顶部栏快捷胶囊 `[ 亮度 100% ]` 或轻触状态栏任意区域，即刻呼出 macOS 控制中心质感的浮动控制面板；
+  - 支持 **10% ~ 100% 连续触控滑动条**（硬件 LEDC PWM 平滑调光），安全限制最低 10% 亮度杜绝意外黑屏；
+  - 贴心配备 **4 档一键预设**（`25% 低亮`、`50% 中亮`、`75% 高亮`、`100% 极亮`）；
+  - 基于 ESP32 内部 NVS 掉电非易失性存储，断电重启自动恢复背光档位；轻点屏幕背景空白处或右上角关闭按钮随时收起。
 - ⚡ **真正的“零配置、通电即连”**：
   - 采用 **纯低功耗蓝牙 (BLE 5.0 GATT)** 广播标准 Nordic UART 串口服务；
   - 用户**完全无需在 macOS 系统设置中手动配对或输 PIN 码**。开发板通电后，Mac 端的 AgentRing 在后台自动发现并于 1 秒内握手推流；
@@ -107,7 +115,7 @@ idf.py -p /dev/cu.usbmodem* flash
 
 ### 第二步：开启 Mac 端 AgentRing
 
-1. 在 Mac 上运行最新版 **[AgentRing](https://github.com/davidhoo/agentRing)**；
+1. 在 Mac 上运行最新版 **[AgentRing](https://github.com/haorui-lab/agentRing)**；
 2. 确保在菜单栏 **AgentRing -> 偏好设置** 中勾选开启了 **“启用副屏蓝牙同步”**；
 3. **完成！** 无需在 macOS“系统设置 -> 蓝牙”里手动配对搜索。开发板上电后，Mac 端会自动发现广播名 `AgentRing-ESP32-LCD`，屏幕将自动从“等待 AgentRing 同步”卡片平滑切换为实时 4 列仪表盘。
 

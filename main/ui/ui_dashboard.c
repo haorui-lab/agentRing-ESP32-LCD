@@ -18,9 +18,12 @@ static lv_obj_t *s_top_bar = NULL;
 static lv_obj_t *s_status_dot = NULL;
 static lv_obj_t *s_status_label = NULL;
 static lv_obj_t *s_device_name_label = NULL;
+static lv_obj_t *s_datetime_label = NULL;
 static lv_obj_t *s_updated_label = NULL;
 static lv_obj_t *s_brightness_btn = NULL;
 static lv_obj_t *s_brightness_btn_label = NULL;
+static lv_timer_t *s_clock_timer = NULL;
+
 
 // Brightness Dropdown Panel widgets
 static lv_obj_t *s_backdrop = NULL;
@@ -141,7 +144,7 @@ static void brightness_btn_click_cb(lv_event_t *e) {
 
 static void top_bar_click_cb(lv_event_t *e) {
     lv_obj_t *target = lv_event_get_target(e);
-    if (target == s_top_bar) {
+    if (target == s_top_bar || target == s_datetime_label) {
         ui_dashboard_toggle_brightness_panel();
     }
 }
@@ -170,6 +173,42 @@ static void close_btn_click_cb(lv_event_t *e) {
     ui_dashboard_hide_brightness_panel();
 }
 
+static const char *WEEKDAY_NAMES[] = {
+    "星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"
+};
+
+static void update_datetime_display(void) {
+    if (!s_datetime_label) return;
+
+    time_t now = time(NULL);
+    if (now < 1704067200LL) {
+        lv_label_set_text(s_datetime_label, "等待时钟同步…");
+        return;
+    }
+
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    int wday = timeinfo.tm_wday;
+    if (wday < 0 || wday > 6) wday = 0;
+
+    char dt_buf[64];
+    snprintf(dt_buf, sizeof(dt_buf), "%04d年%d月%d日 %s %02d:%02d:%02d",
+             timeinfo.tm_year + 1900,
+             timeinfo.tm_mon + 1,
+             timeinfo.tm_mday,
+             WEEKDAY_NAMES[wday],
+             timeinfo.tm_hour,
+             timeinfo.tm_min,
+             timeinfo.tm_sec);
+
+    lv_label_set_text(s_datetime_label, dt_buf);
+}
+
+static void clock_timer_cb(lv_timer_t *timer) {
+    update_datetime_display();
+}
+
 static void create_top_bar(lv_obj_t *parent) {
     s_top_bar = lv_obj_create(parent);
     lv_obj_set_size(s_top_bar, 1024, 44);
@@ -195,6 +234,7 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_obj_set_style_pad_gap(left_cont, 8, LV_PART_MAIN);
     lv_obj_clear_flag(left_cont, LV_OBJ_FLAG_SCROLLABLE);
 
+
     // Status Dot
     s_status_dot = lv_obj_create(left_cont);
     lv_obj_set_size(s_status_dot, 10, 10);
@@ -219,6 +259,13 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_label_set_text(s_device_name_label, "AgentRing-ESP32-LCD");
     lv_obj_set_style_text_color(s_device_name_label, COLOR_TEXT_MAIN, LV_PART_MAIN);
     lv_obj_set_style_text_font(s_device_name_label, &lv_font_montserrat_16, LV_PART_MAIN);
+
+    // Center label: Real-time Date and Time
+    s_datetime_label = lv_label_create(s_top_bar);
+    lv_obj_align(s_datetime_label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_font(s_datetime_label, &ui_font_chinese_16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_datetime_label, COLOR_TEXT_PRIMARY, LV_PART_MAIN);
+    update_datetime_display();
 
     // Right container: Last Updated + Brightness Pill Button
     lv_obj_t *right_cont = lv_obj_create(s_top_bar);
@@ -658,6 +705,11 @@ void ui_dashboard_init(void) {
 
     // Brightness Control Panel Dropdown (Top layer)
     create_brightness_dropdown(s_root);
+
+    // 1-second Clock Timer for real-time Date & Time display
+    if (!s_clock_timer) {
+        s_clock_timer = lv_timer_create(clock_timer_cb, 1000, NULL);
+    }
 }
 
 void ui_dashboard_set_bt_status(ui_bt_state_t state, const char *detail) {
@@ -706,6 +758,7 @@ void ui_dashboard_update_payload(const sync_payload_t *payload) {
             .tv_usec = 0
         };
         settimeofday(&tv, NULL);
+        update_datetime_display();
     }
 
     // Format updated timestamp
