@@ -250,17 +250,6 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_obj_set_style_text_color(s_status_label, COLOR_TEXT_MUTED, LV_PART_MAIN);
     lv_obj_set_style_text_font(s_status_label, &ui_font_chinese_16, LV_PART_MAIN);
 
-    // Divider bar
-    lv_obj_t *sep = lv_label_create(left_cont);
-    lv_label_set_text(sep, "•");
-    lv_obj_set_style_text_color(sep, COLOR_TEXT_LIGHT, LV_PART_MAIN);
-
-    // Device Name
-    s_device_name_label = lv_label_create(left_cont);
-    lv_label_set_text(s_device_name_label, "AgentRing-ESP32-LCD");
-    lv_obj_set_style_text_color(s_device_name_label, COLOR_TEXT_MAIN, LV_PART_MAIN);
-    lv_obj_set_style_text_font(s_device_name_label, &lv_font_montserrat_16, LV_PART_MAIN);
-
     // Center label: Real-time Date and Time
     s_datetime_label = lv_label_create(s_top_bar);
     lv_obj_align(s_datetime_label, LV_ALIGN_CENTER, 0, 0);
@@ -320,11 +309,19 @@ static void create_bottom_bar(lv_obj_t *parent) {
     lv_obj_set_style_pad_ver(s_bottom_bar, 6, LV_PART_MAIN);
     lv_obj_clear_flag(s_bottom_bar, LV_OBJ_FLAG_SCROLLABLE);
 
+    // Bottom-Left: Device Name
+    s_device_name_label = lv_label_create(s_bottom_bar);
+    lv_label_set_text(s_device_name_label, "设备: AgentRing-LCD");
+    lv_obj_set_style_text_color(s_device_name_label, COLOR_TEXT_SECONDARY, LV_PART_MAIN);
+    lv_obj_set_style_text_font(s_device_name_label, &ui_font_chinese_16, LV_PART_MAIN);
+    lv_obj_align(s_device_name_label, LV_ALIGN_LEFT_MID, 0, 0);
+
+    // Bottom-Right: Sync Mechanism Info
     s_sync_info_label = lv_label_create(s_bottom_bar);
-    lv_label_set_text(s_sync_info_label, "数据源自 Mac 端 AgentRing 本地低功耗蓝牙 (BLE GATT) 实时推流 • 本地直连 • 15 秒保活同步");
+    lv_label_set_text(s_sync_info_label, "数据源自 Mac 端 AgentRing 本地低功耗蓝牙 (BLE GATT) 实时推流 • 15 秒保活同步");
     lv_obj_set_style_text_font(s_sync_info_label, &ui_font_chinese_16, LV_PART_MAIN);
     lv_obj_set_style_text_color(s_sync_info_label, COLOR_TEXT_TERTIARY, LV_PART_MAIN);
-    lv_obj_align(s_sync_info_label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(s_sync_info_label, LV_ALIGN_RIGHT_MID, 0, 0);
 }
 
 static void create_empty_state(lv_obj_t *parent) {
@@ -738,7 +735,9 @@ void ui_dashboard_set_bt_status(ui_bt_state_t state, const char *detail) {
 void ui_dashboard_set_device_name(const char *name) {
     if (name) {
         if (s_device_name_label) {
-            lv_label_set_text(s_device_name_label, name);
+            char dev_buf[64];
+            snprintf(dev_buf, sizeof(dev_buf), "设备: %s", name);
+            lv_label_set_text(s_device_name_label, dev_buf);
         }
         if (s_empty_desc) {
             char desc_buf[160];
