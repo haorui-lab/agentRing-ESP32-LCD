@@ -11,6 +11,7 @@
 #include "bsp/display.h"
 #include "ui/ui_dashboard.h"
 #include "bt/bt_transport.h"
+#include "esp_mac.h"
 
 static const char *TAG = "AgentRingMain";
 
@@ -62,20 +63,31 @@ void app_main(void) {
     bsp_display_backlight_on();
     ESP_LOGI(TAG, "屏幕初始化完成，分辨率: %dx%d", BSP_LCD_H_RES, BSP_LCD_V_RES);
 
-    // 3. Initialize UI Dashboard
+    // 3. Generate dynamic unique device name based on Base MAC address (AgentRing-LCD-XXXX)
+    uint8_t mac[6] = {0};
+    char device_name[32] = "AgentRing-LCD";
+    if (esp_read_mac(mac, ESP_MAC_BASE) == ESP_OK) {
+        snprintf(device_name, sizeof(device_name), "AgentRing-LCD-%02X%02X", mac[4], mac[5]);
+    } else {
+        snprintf(device_name, sizeof(device_name), "AgentRing-LCD-0000");
+    }
+    ESP_LOGI(TAG, "设备专属唯一名称: %s (MAC: %02X:%02X:%02X:%02X:%02X:%02X)",
+             device_name, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    // 4. Initialize UI Dashboard
     if (bsp_display_lock(-1)) {
         ui_dashboard_init();
         int initial_brightness = ui_dashboard_get_brightness();
         bsp_display_brightness_set(initial_brightness);
         ESP_LOGI(TAG, "恢复屏幕背光亮度: %d%%", initial_brightness);
-        ui_dashboard_set_device_name("AgentRing-ESP32-LCD");
+        ui_dashboard_set_device_name(device_name);
         ui_dashboard_set_bt_status(UI_BT_STATE_ADVERTISING, "广播就绪，等待 Mac 连接…");
         bsp_display_unlock();
     }
 
-    // 4. Initialize Bluetooth Transport Layer
+    // 5. Initialize Bluetooth Transport Layer
     bt_transport_config_t bt_cfg = {
-        .device_name = "AgentRing-ESP32-LCD",
+        .device_name = device_name,
         .on_payload = on_bt_payload_received,
         .on_state = on_bt_state_changed,
     };

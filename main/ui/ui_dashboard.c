@@ -39,6 +39,7 @@ static lv_obj_t *s_sync_info_label = NULL;
 
 // Content area
 static lv_obj_t *s_empty_state = NULL;
+static lv_obj_t *s_empty_desc = NULL;
 static lv_obj_t *s_columns_cont = NULL;
 
 // Cached payload
@@ -359,11 +360,11 @@ static void create_empty_state(lv_obj_t *parent) {
     lv_obj_set_style_text_font(title, &ui_font_chinese_22, LV_PART_MAIN);
     lv_obj_set_style_text_color(title, COLOR_TEXT_MAIN, LV_PART_MAIN);
 
-    lv_obj_t *desc = lv_label_create(card);
-    lv_label_set_text(desc, "请在 Mac 状态栏打开 AgentRing 并启用蓝牙副屏同步\n设备广播名: AgentRing-ESP32-LCD");
-    lv_obj_set_style_text_font(desc, &ui_font_chinese_16, LV_PART_MAIN);
-    lv_obj_set_style_text_color(desc, COLOR_TEXT_MUTED, LV_PART_MAIN);
-    lv_obj_set_style_text_align(desc, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    s_empty_desc = lv_label_create(card);
+    lv_label_set_text(s_empty_desc, "请在 Mac 状态栏打开 AgentRing 并启用蓝牙副屏同步\n设备广播名: AgentRing-LCD");
+    lv_obj_set_style_text_font(s_empty_desc, &ui_font_chinese_16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_empty_desc, COLOR_TEXT_MUTED, LV_PART_MAIN);
+    lv_obj_set_style_text_align(s_empty_desc, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
 }
 
 static void configure_arc_appearance(lv_obj_t *arc, int width, lv_color_t color, lv_color_t track_color) {
@@ -735,8 +736,15 @@ void ui_dashboard_set_bt_status(ui_bt_state_t state, const char *detail) {
 }
 
 void ui_dashboard_set_device_name(const char *name) {
-    if (s_device_name_label && name) {
-        lv_label_set_text(s_device_name_label, name);
+    if (name) {
+        if (s_device_name_label) {
+            lv_label_set_text(s_device_name_label, name);
+        }
+        if (s_empty_desc) {
+            char desc_buf[160];
+            snprintf(desc_buf, sizeof(desc_buf), "请在 Mac 状态栏打开 AgentRing 并启用蓝牙副屏同步\n设备广播名: %s", name);
+            lv_label_set_text(s_empty_desc, desc_buf);
+        }
     }
 }
 
