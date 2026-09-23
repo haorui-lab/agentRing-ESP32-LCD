@@ -102,9 +102,9 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
         ESP_LOGI(TAG, "BLE 已断开连接, 原因=%d", event->disconnect.reason);
         s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
         if (s_state_callback) {
-            s_state_callback(false, "广播就绪，等待 Mac 连接…");
+            s_state_callback(false, "连接断开，重新广播中…");
         }
-        ble_server_advertise();
+        ble_server_restart_advertising();
         return 0;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
@@ -122,7 +122,27 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
     }
 }
 
+bool ble_server_is_advertising(void) {
+    return ble_gap_adv_active() != 0;
+}
+
+void ble_server_restart_advertising(void) {
+    if (s_conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        ESP_LOGI(TAG, "主动终止现有连接 conn_handle=%d", s_conn_handle);
+        ble_gap_terminate(s_conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    }
+    if (ble_gap_adv_active()) {
+        ble_gap_adv_stop();
+    }
+    ble_server_advertise();
+}
+
 static void ble_server_advertise(void) {
+    if (ble_gap_adv_active()) {
+        return;
+    }
+
     struct ble_gap_adv_params adv_params;
     struct ble_hs_adv_fields adv_fields;
     struct ble_hs_adv_fields rsp_fields;
@@ -161,7 +181,7 @@ static void ble_server_advertise(void) {
 
     rc = ble_gap_adv_start(s_own_addr_type, NULL, BLE_HS_FOREVER,
                            &adv_params, ble_gap_event, NULL);
-    if (rc != 0) {
+    if (rc != 0 && rc != BLE_HS_EALREADY) {
         ESP_LOGE(TAG, "开启 BLE 广播失败: rc=%d", rc);
     } else {
         ESP_LOGI(TAG, "BLE 广播已开启，设备名: [%s]", s_device_name);

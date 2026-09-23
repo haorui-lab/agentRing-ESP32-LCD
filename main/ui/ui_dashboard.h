@@ -15,10 +15,17 @@ typedef enum {
     UI_BT_STATE_ERROR
 } ui_bt_state_t;
 
+typedef void (*ui_retry_cb_t)(void);
+
 /**
  * @brief Initialize all LVGL UI objects for AgentRing dashboard
  */
 void ui_dashboard_init(void);
+
+/**
+ * @brief Set user tap retry callback
+ */
+void ui_dashboard_set_retry_callback(ui_retry_cb_t cb);
 
 /**
  * @brief Update connection status banner

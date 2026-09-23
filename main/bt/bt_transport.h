@@ -38,6 +38,11 @@ void bt_transport_inject_demo_data(void);
  */
 void bt_transport_tick(void);
 
+/**
+ * @brief Trigger reconnect / restart advertising upon user tap or disconnect
+ */
+void bt_transport_retry(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -138,16 +138,40 @@ void bt_transport_inject_demo_data(void) {
     bt_transport_feed_bytes((const uint8_t *)buf, strlen(buf));
 }
 
+void bt_transport_retry(void) {
+    ESP_LOGI(TAG, "用户手动触发重试，重启 BLE 广播会话");
+    s_is_connected = false;
+    s_usb_active = false;
+    s_rx_len = 0;
+    s_last_active_time_ms = 0;
+    if (s_config.on_state) {
+        s_config.on_state(UI_BT_STATE_ADVERTISING, "重新广播中，等待连接…");
+    }
+    ble_server_restart_advertising();
+}
+
 void bt_transport_tick(void) {
     int64_t now_ms = esp_timer_get_time() / 1000;
     if (s_is_connected && s_last_active_time_ms > 0) {
         if (now_ms - s_last_active_time_ms > 60000) { // 60s timeout
-            ESP_LOGW(TAG, "连接超时 (60s 无数据/心跳)，断开会话");
+            ESP_LOGW(TAG, "连接超时 (60s 无数据/心跳)，主动重置会话并重启广播");
             s_is_connected = false;
             s_usb_active = false;
             s_rx_len = 0;
+            s_last_active_time_ms = 0;
             if (s_config.on_state) {
-                s_config.on_state(UI_BT_STATE_ADVERTISING, "连接超时，等待重新连接…");
+                s_config.on_state(UI_BT_STATE_ADVERTISING, "连接超时，重新广播中…");
+            }
+            ble_server_restart_advertising();
+        }
+    } else if (!s_is_connected && !s_usb_active) {
+        // 广播看门狗：如果当前未连接且 BLE 广播意外停止，则自动恢复广播
+        static int64_t s_last_adv_check_ms = 0;
+        if (now_ms - s_last_adv_check_ms > 5000) {
+            s_last_adv_check_ms = now_ms;
+            if (!ble_server_is_advertising()) {
+                ESP_LOGI(TAG, "看门狗检测到广播已停止，自动恢复广播");
+                ble_server_restart_advertising();
             }
         }
     }

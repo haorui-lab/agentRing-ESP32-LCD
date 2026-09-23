@@ -17,6 +17,8 @@ static lv_obj_t *s_root = NULL;
 static lv_obj_t *s_top_bar = NULL;
 static lv_obj_t *s_status_dot = NULL;
 static lv_obj_t *s_status_label = NULL;
+static lv_obj_t *s_retry_btn = NULL;
+static ui_retry_cb_t s_retry_callback = NULL;
 static lv_obj_t *s_device_name_label = NULL;
 static lv_obj_t *s_datetime_label = NULL;
 static lv_obj_t *s_updated_label = NULL;
@@ -139,6 +141,23 @@ static void ui_dashboard_toggle_brightness_panel(void) {
     }
 }
 
+static void retry_btn_click_cb(lv_event_t *e) {
+    (void)e;
+    if (s_status_dot) {
+        lv_obj_set_style_bg_color(s_status_dot, COLOR_STATUS_BLUE, LV_PART_MAIN);
+    }
+    if (s_status_label) {
+        lv_label_set_text(s_status_label, "正在重试连接…");
+    }
+    if (s_retry_callback) {
+        s_retry_callback();
+    }
+}
+
+void ui_dashboard_set_retry_callback(ui_retry_cb_t cb) {
+    s_retry_callback = cb;
+}
+
 static void brightness_btn_click_cb(lv_event_t *e) {
     ui_dashboard_toggle_brightness_panel();
 }
@@ -249,6 +268,23 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_label_set_text(s_status_label, "等待连接...");
     lv_obj_set_style_text_color(s_status_label, COLOR_TEXT_MUTED, LV_PART_MAIN);
     lv_obj_set_style_text_font(s_status_label, &ui_font_chinese_16, LV_PART_MAIN);
+
+    // Retry Icon Button (shown when disconnected or error)
+    s_retry_btn = lv_btn_create(left_cont);
+    lv_obj_set_size(s_retry_btn, 24, 24);
+    lv_obj_set_style_radius(s_retry_btn, 12, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_retry_btn, COLOR_CAPSULE_BG, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_retry_btn, COLOR_DIVIDER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_retry_btn, 1, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(s_retry_btn, 0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(s_retry_btn, 0, LV_PART_MAIN);
+    lv_obj_add_event_cb(s_retry_btn, retry_btn_click_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *retry_icon = lv_label_create(s_retry_btn);
+    lv_label_set_text(retry_icon, LV_SYMBOL_REFRESH);
+    lv_obj_set_style_text_font(retry_icon, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_color(retry_icon, COLOR_STATUS_BLUE, LV_PART_MAIN);
+    lv_obj_align(retry_icon, LV_ALIGN_CENTER, 0, 0);
 
     // Center label: Real-time Date and Time
     s_datetime_label = lv_label_create(s_top_bar);
@@ -716,14 +752,23 @@ void ui_dashboard_set_bt_status(ui_bt_state_t state, const char *detail) {
     switch (state) {
         case UI_BT_STATE_CONNECTED:
             lv_obj_set_style_bg_color(s_status_dot, COLOR_STATUS_GREEN, LV_PART_MAIN);
+            if (s_retry_btn) {
+                lv_obj_add_flag(s_retry_btn, LV_OBJ_FLAG_HIDDEN);
+            }
             break;
         case UI_BT_STATE_ADVERTISING:
             lv_obj_set_style_bg_color(s_status_dot, COLOR_STATUS_BLUE, LV_PART_MAIN);
+            if (s_retry_btn) {
+                lv_obj_clear_flag(s_retry_btn, LV_OBJ_FLAG_HIDDEN);
+            }
             break;
         case UI_BT_STATE_OFF:
         case UI_BT_STATE_ERROR:
         default:
             lv_obj_set_style_bg_color(s_status_dot, COLOR_STATUS_RED, LV_PART_MAIN);
+            if (s_retry_btn) {
+                lv_obj_clear_flag(s_retry_btn, LV_OBJ_FLAG_HIDDEN);
+            }
             break;
     }
 

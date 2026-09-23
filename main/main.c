@@ -77,6 +77,7 @@ void app_main(void) {
     // 4. Initialize UI Dashboard
     if (bsp_display_lock(-1)) {
         ui_dashboard_init();
+        ui_dashboard_set_retry_callback(bt_transport_retry);
         int initial_brightness = ui_dashboard_get_brightness();
         bsp_display_brightness_set(initial_brightness);
         ESP_LOGI(TAG, "恢复屏幕背光亮度: %d%%", initial_brightness);

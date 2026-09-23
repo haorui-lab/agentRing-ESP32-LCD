@@ -21,6 +21,16 @@ typedef void (*ble_conn_state_cb_t)(bool connected, const char *detail);
  */
 bool ble_server_init(const char *device_name, ble_data_rx_cb_t rx_cb, ble_conn_state_cb_t state_cb);
 
+/**
+ * @brief Force restart BLE advertising, terminating any existing/stale connection
+ */
+void ble_server_restart_advertising(void);
+
+/**
+ * @brief Check whether BLE advertising is currently active
+ */
+bool ble_server_is_advertising(void);
+
 #ifdef __cplusplus
 }
 #endif
