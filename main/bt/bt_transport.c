@@ -18,7 +18,8 @@ static size_t s_rx_len = 0;
 
 static RingbufHandle_t s_rx_ringbuf = NULL;
 static bt_transport_config_t s_config;
-static int64_t s_last_active_time_ms = 0;
+static volatile uint32_t s_last_active_sec = 0;  // 原子安全：32-bit 对齐读写在 ESP32 上是原子的
+static volatile bool s_retry_requested = false;   // LVGL 任务设置标志，main loop 异步执行 BLE 操作
 static bool s_is_connected = false;
 static bool s_usb_active = false;
 
@@ -31,7 +32,7 @@ static const char *DEMO_JSON_FORMAT =
 "]}\n";
 
 static void process_complete_line(char *line) {
-    s_last_active_time_ms = esp_timer_get_time() / 1000;
+    s_last_active_sec = (uint32_t)(esp_timer_get_time() / 1000000);
 
     char *json_start = strchr(line, '{');
     if (!json_start) {
@@ -139,36 +140,46 @@ void bt_transport_inject_demo_data(void) {
 }
 
 void bt_transport_retry(void) {
-    ESP_LOGI(TAG, "用户手动触发重试，重启 BLE 广播会话");
-    s_is_connected = false;
-    s_usb_active = false;
-    s_rx_len = 0;
-    s_last_active_time_ms = 0;
-    if (s_config.on_state) {
-        s_config.on_state(UI_BT_STATE_ADVERTISING, "重新广播中，等待连接…");
-    }
-    ble_server_restart_advertising();
+    // 仅设置标志位，由 main loop 的 bt_transport_tick() 异步执行 BLE 操作
+    // 避免从 LVGL 任务直接调用 NimBLE 协议栈导致卡死或 crash
+    s_retry_requested = true;
 }
 
 void bt_transport_tick(void) {
-    int64_t now_ms = esp_timer_get_time() / 1000;
-    if (s_is_connected && s_last_active_time_ms > 0) {
-        if (now_ms - s_last_active_time_ms > 60000) { // 60s timeout
+    // 1. 处理用户手动重试请求（从 LVGL 任务延迟到 main task 执行）
+    if (s_retry_requested) {
+        s_retry_requested = false;
+        ESP_LOGI(TAG, "用户手动触发重试，重启 BLE 广播会话");
+        s_is_connected = false;
+        s_usb_active = false;
+        s_rx_len = 0;
+        s_last_active_sec = 0;
+        if (s_config.on_state) {
+            s_config.on_state(UI_BT_STATE_ADVERTISING, "重新广播中，等待连接…");
+        }
+        ble_server_restart_advertising();
+        return;  // 本轮不再做超时判断
+    }
+
+    // 2. 连接超时检测（60 秒无数据/心跳）
+    uint32_t now_sec = (uint32_t)(esp_timer_get_time() / 1000000);
+    if (s_is_connected && s_last_active_sec > 0) {
+        if (now_sec - s_last_active_sec > 60) {
             ESP_LOGW(TAG, "连接超时 (60s 无数据/心跳)，主动重置会话并重启广播");
             s_is_connected = false;
             s_usb_active = false;
             s_rx_len = 0;
-            s_last_active_time_ms = 0;
+            s_last_active_sec = 0;
             if (s_config.on_state) {
                 s_config.on_state(UI_BT_STATE_ADVERTISING, "连接超时，重新广播中…");
             }
             ble_server_restart_advertising();
         }
     } else if (!s_is_connected && !s_usb_active) {
-        // 广播看门狗：如果当前未连接且 BLE 广播意外停止，则自动恢复广播
-        static int64_t s_last_adv_check_ms = 0;
-        if (now_ms - s_last_adv_check_ms > 5000) {
-            s_last_adv_check_ms = now_ms;
+        // 3. 广播看门狗：如果当前未连接且 BLE 广播意外停止，则自动恢复广播
+        static uint32_t s_last_adv_check_sec = 0;
+        if (now_sec - s_last_adv_check_sec > 5) {
+            s_last_adv_check_sec = now_sec;
             if (!ble_server_is_advertising()) {
                 ESP_LOGI(TAG, "看门狗检测到广播已停止，自动恢复广播");
                 ble_server_restart_advertising();
@@ -185,7 +196,7 @@ bool bt_transport_init(const bt_transport_config_t *config) {
     s_rx_len = 0;
     s_is_connected = false;
     s_usb_active = false;
-    s_last_active_time_ms = 0;
+    s_last_active_sec = 0;
 
     /* 1. Create 16KB ByteBuf RingBuffer for zero-copy async data passing */
     s_rx_ringbuf = xRingbufferCreate(16384, RINGBUF_TYPE_BYTEBUF);

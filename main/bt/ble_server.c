@@ -104,7 +104,8 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
         if (s_state_callback) {
             s_state_callback(false, "连接断开，重新广播中…");
         }
-        ble_server_restart_advertising();
+        // 断开事件中直接启动广播即可，无需再调用 restart（会导致重入循环）
+        ble_server_advertise();
         return 0;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:

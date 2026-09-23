@@ -143,11 +143,9 @@ static void ui_dashboard_toggle_brightness_panel(void) {
 
 static void retry_btn_click_cb(lv_event_t *e) {
     (void)e;
+    // 仅更新指示灯颜色作为即时视觉反馈，状态文案由 transport 层统一管理
     if (s_status_dot) {
         lv_obj_set_style_bg_color(s_status_dot, COLOR_STATUS_BLUE, LV_PART_MAIN);
-    }
-    if (s_status_label) {
-        lv_label_set_text(s_status_label, "正在重试连接…");
     }
     if (s_retry_callback) {
         s_retry_callback();
