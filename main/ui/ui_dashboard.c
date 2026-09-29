@@ -300,7 +300,12 @@ static void create_top_bar(lv_obj_t *parent) {
     lv_obj_set_flex_flow(right_cont, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(right_cont, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(right_cont, 14, LV_PART_MAIN);
-    lv_obj_align(right_cont, LV_ALIGN_RIGHT_MID, 0, 0);
+    // Standalone firmware stays flush right. The companion hub passes -92 so this
+    // cluster clears the menu button it draws on lv_layer_top at x=934..1016.
+#ifndef AGENT_RING_TOPBAR_RIGHT_X
+#define AGENT_RING_TOPBAR_RIGHT_X 0
+#endif
+    lv_obj_align(right_cont, LV_ALIGN_RIGHT_MID, AGENT_RING_TOPBAR_RIGHT_X, 0);
     lv_obj_clear_flag(right_cont, LV_OBJ_FLAG_SCROLLABLE);
 
     // Right label: Last Updated
