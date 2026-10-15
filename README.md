@@ -9,6 +9,10 @@
   <img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License">
 </p>
 
+<p align="center">
+  <img src="docs/images/esp32-lcd-cover.jpg" alt="AgentRing-ESP32-LCD 实机：Mac BLE 已连接的四列圆环仪表盘">
+</p>
+
 基于 **ESP32-P4** 高性能双核 RISC-V 芯片与 **LVGL 9** 打造的独立桌面硬件副屏固件。通过低功耗蓝牙 (BLE 5.0 GATT) 或 USB-C 串口，无缝直连 macOS 状态栏应用 **[AgentRing](https://github.com/haorui-lab/agentRing)**，实时呈现各大主流 AI 编程助手（**Codex / Antigravity / Claude / GPT / Cursor**）的额度同心圆环、剩余百分比与重置倒计时。
 
 遵循 Apple HIG 与 Apple Watch Activity Rings 设计语言，提供清爽无扰、通电即连、零云端中转的硬件级极客桌面摆件。
